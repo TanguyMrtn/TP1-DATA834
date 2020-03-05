@@ -11,26 +11,33 @@ function getAllUsers(req,res){
 	const token = req.header('Authorization').replace('Bearer ', '');
 
 	try {
-		const nbOfRequest = client.get(token, redis.print);
-		if (nbOfRequest > 3) {
-			res.json("Too many request !");
+
+		if (client.get(token,redis.print) == false) {
+			client.set(token,0,redis.print);
 		}
-	    const payload = jwt.verify(token, "test") ;
-		
-	    const User = require('../models/user');
-	    User.find({}, function(err, users) {
-	    	if (err) throw err;
-	    	console.log("Token");
-	    	console.log("Token ",client.get(token,redis.print));
-	    	var newTokenValue;
-	    	client.get(token,function(err,value) {
-	    		newTokenValue = value+1;
-	    		console.log("Token value ",newTokenValue);
+
+		if (client.get(token, function(err,value) {
+			if (value > 3) {
+				res.json({Erreur : "Too many requests !"});
+			}
+
+			else {
+				const payload = jwt.verify(token, "test") ;
+				const User = require('../models/user');
+	    		User.find({}, function(err, users) {
+	    		if (err) throw err;
+	    		let newTokenValue = 5;
+	    		client.get(token,function(err,value) {
+	    		console.log("Token value ",value);
+	    		console.log(typeof(value));
+	    		newTokenValue = parseInt(value) + 1;
 	    	});
-		    console.log(newTokenValue);
-		    client.set(token, newTokenValue, redis.print);
+	    	console.log("New value ",newTokenValue);
+		    client.incr(token, redis.print);
 		    res.json(users);
 	    });
+			}
+		}));
 	} 
 	catch(error) {
     	res.json(error.message);
